@@ -10,6 +10,7 @@
 # This script is further intended to be a VM startup script for Neo4j.  Upon VM launch,
 # we want to write a graph from the original CSV files, and then start Neo4j.
 from os import listdir, mkdir
+from datetime import datetime
 from os.path import isfile, join, isdir
 import sys
 import subprocess
@@ -50,6 +51,9 @@ def prepare_rel(rel_type, dir):
     # Format example:  --relationships=ORDERED="customer_orders_header.csv,orders1.csv,orders2.csv"
     return "--relationships=%s=%s,%s" % (rel_type, headers, ",".join(csv_files))
 
+def log(msg):
+    print("%s csv_import: %s" % (datetime.now().isoformat(), msg))
+
 def copy_data_from_storage(import_from):
     staging = "staging"
     if not os.path.exists(staging):
@@ -58,21 +62,38 @@ def copy_data_from_storage(import_from):
         "gsutil", "-m", "rsync", "-r", import_from, staging
     ], stderr=subprocess.STDOUT)
 
-    print("Finished copying with %s" % result)
-
-    print("Files available are %s" % listdir(staging))
+    log("Finished copying with %s" % result)
+    log("Files available are %s" % listdir(staging))
     return staging
 
+def catcher(fn, message):
+    try:
+        return fn()
+    except Exception as err:
+        log("Failed to %s: %s" % (message, err))
+
+def start_neo4j():
+    return catcher(lambda: subprocess.run(['systemctl', 'start', 'neo4j']), "start neo4j system service")
+
+def stop_neo4j():
+    return catcher(lambda: subprocess.run(['systemctl', 'stop', 'neo4j']), "stop neo4j system service")
+
+def assign_permissions():
+    return catcher(
+        lambda: subprocess.run(["chown", "-R", "neo4j:neo4j", "/var/lib/neo4j/data/*"], shell=True), 
+        "assign neo4j:neo4j privileges to restored database")
+
 def main():
+    stop_neo4j()
     dir = copy_data_from_storage("gs://meetup-data/chicago_crime_bigquery")
 
     data_dirs = [f for f in listdir(dir) if isdir(join(dir, f))]
-    print(data_dirs)
+    log(data_dirs)
 
     nodes = list(filter(lambda e: e.startswith("node_"), data_dirs))
     rels = list(filter(lambda e: e.startswith("rel_"), data_dirs))
-    print(nodes)
-    print(rels)
+    log("Nodes: %s" % nodes)
+    log("Relationships: %s" % rels)
 
     for node_dir in nodes:
         label=node_dir.replace("node_", "")
@@ -83,16 +104,16 @@ def main():
         import_args.append(prepare_rel(rel_type, join(dir, rel_dir)))
 
     command=" ".join(import_args)
-    print(command)
+    log("Running command %s" % command)
     result = subprocess.run(import_args, stderr=subprocess.STDOUT)
-    print("Finished neo4j-admin import");
+    print("Finished neo4j-admin import")
+    assign_permissions()
+    start_neo4j()
 
 try:
     main()
+    sys.exit(0)
 except Exception as err:
-    print(err)
-    print("Unhandled exception in import process")
+    log("Unhandled exception in import process")
+    log("%s" % err)
     sys.exit(1)
-
-
-#onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
