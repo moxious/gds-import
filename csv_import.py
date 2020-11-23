@@ -97,9 +97,7 @@ def destroy_database(db='neo4j'):
     log("Destroying in place 'neo4j' database, to be replaced by import")
 
     commands = [
-        { "cmd": "rm -rf \"%s/data/databases/%s\"" % (neo4j_path, db), "message": "destroy database files" },
-        { "cmd": "rm -rf \"%s/data/transactions/%s\"" % (neo4j_path, db), "message": "destroy tx logs" },
-        { "cmd": "rm -f \"%s/data/databases/store_lock\"" % neo4j_path, "message": "destroy store_lock" }
+        { "cmd": "rm -rf \"%s/data/\"" % neo4j_path, "message": "destroy database state" }
     ]
     
     for command in commands: 
@@ -110,7 +108,7 @@ def destroy_database(db='neo4j'):
 def assign_permissions():
     log("Assigning neo4j:neo4j permissions to newly created database")
     return catcher(
-        lambda: run_command("chown -R neo4j:neo4j /var/lib/neo4j/data/*"), 
+        lambda: run_command("chown -R neo4j:neo4j /var/lib/neo4j/data"), 
         "assign neo4j:neo4j privileges to restored database")
 
 def main(storage = "gs://meetup-data/chicago_crime_bigquery"):
