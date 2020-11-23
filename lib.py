@@ -60,7 +60,7 @@ class Neo4jImportCSV:
       if not dtype in Neo4jImportCSV.type_mappings:
         print("Col %s is of type %s which has no type mapping; assuming string" % (name, dtype))
 
-      neo4j_type_name = type_mappings.get(dtype, "string")
+      neo4j_type_name = Neo4jImportCSV.type_mappings.get(dtype, "string")
       
       if name == pk:
         renamed = "%s:ID(%s)" % (name, label)
