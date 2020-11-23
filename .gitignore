@@ -1,2 +1,4 @@
 staging
 import.report
+debug.log
+syslog
