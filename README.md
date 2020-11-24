@@ -2,20 +2,27 @@
 
 The purpose of this repo is to speed up data processing & ingest into Neo4j instances for GDS processing.
 
-The example we'll use supposes you want to import data from BigQuery into Neo4j.
+The example we'll use supposes you want to import data from BigQuery into Neo4j.  But the method we will
+show applies to just about any database; BigQuery is just the example source system.
 
 ## Approach
 
 - Extract data in any form from Google BigQuery using SQL, and DataProc
 - Process the data in any way needed using Spark / SQL tools into Neo4j's
-[import CSV file format](https://neo4j.com/docs/operations-manual/current/tools/import/file-header-format/)
-- Store the result to Google Cloud Storage
+"tables for labels" format (one table per node label, one table per relationship type)
+- Save the data using the [import CSV file format](https://neo4j.com/docs/operations-manual/current/tools/import/file-header-format/)
+to Google Cloud Storage
 - Launch a VM with a loading script, pointing it to the GCS bucket where the results sit.  This script will
 run the `neo4j-admin import` command on the CSV, and then start Neo4j as normal.
 
+The final steps assume **offline data loading** using `neo4j-admin import`.  If you want online data loading, you can use the
+[Neo4j Connector for Apache Spark](https://neo4j.com/developer/spark/) and the process is the same, except instead of saving to 
+CSV, we write to the database directly.  For more information on the online loading process, consult the documentation for
+the Neo4j Connector for Apache Spark.
+
 ## Before you Begin -- Requirements
 
-### APIs we'll need
+### APIs & Google Services We'll Use
 
 Ensure you have service accounts & permissions configured to use all of the following.
 
