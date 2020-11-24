@@ -3,6 +3,7 @@
 # Choose your settings
 NAME=my-graph-$(head -c 25 /dev/urandom | md5 | head -c 4)
 MACHINE_TYPE=e2-highmem-8
+MY_IMPORT_SET=gs://meetup-data/chicago_crime
 
 # The purpose of this script it to launch a stand-alone GCP VM that 
 # runs Neo4j with graph data science.  The VM will auto-import a graph
@@ -21,5 +22,6 @@ gcloud compute instances create $NAME \
     --image neo4j-enterprise-1-4-1-3-apoc \
     --machine-type=$MACHINE_TYPE \
     --tags neo4j \
+    --metadata neo4j_import_set=$MY_IMPORT_SET \
     --image-project launcher-public \
     --metadata-from-file startup-script=csv_import.py

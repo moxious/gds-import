@@ -1,4 +1,5 @@
 import os
+from os import name
 from pyspark.sql.utils import AnalysisException
 from pyspark.sql import Row
 from pyspark.sql.types import *
@@ -60,7 +61,7 @@ class Neo4jImportCSV:
       if not dtype in Neo4jImportCSV.type_mappings:
         print("Col %s is of type %s which has no type mapping; assuming string" % (name, dtype))
 
-      neo4j_type_name = type_mappings.get(dtype, "string")
+      neo4j_type_name = Neo4jImportCSV.type_mappings.get(dtype, "string")
       
       if name == pk:
         renamed = "%s:ID(%s)" % (name, label)
@@ -79,7 +80,7 @@ class Neo4jImportCSV:
       https://neo4j.com/docs/operations-manual/current/tools/import/file-header-format/
       
       As a simple example of a relationship table with schema person_id,job_id this might turn into
-      :START_ID(person_id:string),:END_ID(job_id:string)
+      :START_ID(Person),:END_ID(Job)
       
       This function will drop all records which have null IDs on either end.
     """

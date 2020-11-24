@@ -15,6 +15,7 @@ from os.path import isfile, join, isdir
 import sys
 import subprocess
 import os
+import urllib.request
 
 # Place where google storage files are copied to
 STAGING_DIR = "/tmp/staging"
@@ -97,9 +98,7 @@ def destroy_database(db='neo4j'):
     log("Destroying in place 'neo4j' database, to be replaced by import")
 
     commands = [
-        { "cmd": "rm -rf \"%s/data/databases/%s\"" % (neo4j_path, db), "message": "destroy database files" },
-        { "cmd": "rm -rf \"%s/data/transactions/%s\"" % (neo4j_path, db), "message": "destroy tx logs" },
-        { "cmd": "rm -f \"%s/data/databases/store_lock\"" % neo4j_path, "message": "destroy store_lock" }
+        { "cmd": "rm -rf \"%s/data/\"" % neo4j_path, "message": "destroy database state" }
     ]
     
     for command in commands: 
@@ -110,11 +109,12 @@ def destroy_database(db='neo4j'):
 def assign_permissions():
     log("Assigning neo4j:neo4j permissions to newly created database")
     return catcher(
-        lambda: run_command("chown -R neo4j:neo4j /var/lib/neo4j/data/*"), 
+        lambda: run_command("chown -R neo4j:neo4j /var/lib/neo4j/data"), 
         "assign neo4j:neo4j privileges to restored database")
 
 def main(storage = "gs://meetup-data/chicago_crime_bigquery"):
-    """Takes an argument of where the CSV import set is located (a directory)"""    
+    """Takes an argument of where the CSV import set is located (a directory)"""
+    log("Beginning csv_import from %s" % storage)
     stop_neo4j()
     destroy_database('neo4j')
     dir = copy_data_from_storage(storage)
@@ -149,10 +149,27 @@ def main(storage = "gs://meetup-data/chicago_crime_bigquery"):
     log("Re-starting neo4j system service with the new database")
     start_neo4j()
 
-if __name__ == "__main__":
-    # execute only if run as a script
+def get_import_set():
+    """Attempts to determine from the system environment what import set should be used.
+
+    - First checks neo4j_import_set metadata on the VM
+    - Second checks the NEO4J_IMPORT_SET environment variable
+
+    Fails if neither are specified.
+    """
     try:
-        main()
+        link = "http://metadata.google.internal/computeMetadata/v1/instance/attributes/neo4j_import_set"
+        req = urllib.request.Request(link, None, { "Metadata-Flavor": "Google" })
+        import_set = urllib.request.urlopen(req).read().decode("utf-8")
+        return import_set
+    except Exception as e:
+        log("Failed to look up metadata entry 'neo4j_import_set'.  Did you remember to put it on the VM? %s" % e)
+        log("Looking for environment variable NEO4J_IMPORT_SET")
+        return os.environ['NEO4J_IMPORT_SET']
+
+if __name__ == "__main__":    
+    try:
+        main(get_import_set())
         sys.exit(0)
     except Exception as err:
         log("Unhandled exception in import process")
